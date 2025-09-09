@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jenkins Project Runner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .jenkins-logo {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .project-info {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+        }
+
+        .project-info h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .repo-url {
+            background: #34495e;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+
+        .control-button:active {
+            transform: translateY(0);
+        }
+
+        .control-button.success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .control-button.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .control-button.danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .terminal {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 25px;
+            border-radius: 12px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .terminal-line {
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .build-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .status-success { background: #27ae60; }
+        .status-building { background: #f39c12; }
+        .status-failed { background: #e74c3c; }
+        .status-idle { background: #95a5a6; }
+
+        .pipeline-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .pipeline-step {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .pipeline-step.active {
+            border-color: #3498db;
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
+        }
+
+        .pipeline-step.completed {
+            border-color: #27ae60;
+            background: linear-gradient(135deg, #d5f4e6, #ffffff);
+        }
+
+        .pipeline-step.failed {
+            border-color: #e74c3c;
+            background: linear-gradient(135deg, #fadbd8, #ffffff);
+        }
+
+        .step-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .step-description {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .config-panel {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .config-row:last-child {
+            border-bottom: none;
+        }
+
+        .config-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .config-value {
+            color: #7f8c8d;
+            font-family: 'Courier New', monospace;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="jenkins-logo">🔧</div>
+            <h1>Jenkins Project Runner</h1>
+            <p>Running: jenkins-1st-project</p>
+        </div>
+
+        <div class="main-content">
+            <div class="project-info">
+                <h3>📁 Project Information</h3>
+                <p><strong>Repository:</strong></p>
+                <div class="repo-url">https://github.com/Abdullahgulzar/jenkins-1st-project</div>
+                <p><strong>Branch:</strong> main</p>
+                <p><strong>Build Type:</strong> Maven/Gradle Project</p>
+            </div>
+
+            <div class="controls">
+                <button class="control-button" onclick="startBuild()">🚀 Start Build</button>
+                <button class="control-button warning" onclick="showConfig()">⚙️ View Config</button>
+                <button class="control-button success" onclick="showTests()">🧪 Run Tests</button>
+                <button class="control-button danger" onclick="stopBuild()">🛑 Stop Build</button>
+            </div>
+
+            <div class="build-status">
+                <div style="display: flex; align-items: center;">
+                    <div class="status-indicator status-idle" id="statusIndicator"></div>
+                    <span id="buildStatus">Ready to build</span>
+                </div>
+                <div>
+                    <strong>Build #<span id="buildNumber">0</span></strong>
+                </div>
+            </div>
+
+            <div class="pipeline-steps">
+                <div class="pipeline-step" id="step-checkout">
+                    <div class="step-icon">📥</div>
+                    <div class="step-title">Checkout</div>
+                    <div class="step-description">Clone from GitHub</div>
+                </div>
+                <div class="pipeline-step" id="step-build">
+                    <div class="step-icon">🔨</div>
+                    <div class="step-title">Build</div>
+                    <div class="step-description">Compile source code</div>
+                </div>
+                <div class="pipeline-step" id="step-test">
+                    <div class="step-icon">🧪</div>
+                    <div class="step-title">Test</div>
+                    <div class="step-description">Run unit tests</div>
+                </div>
+                <div class="pipeline-step" id="step-deploy">
+                    <div class="step-icon">🚀</div>
+                    <div class="step-title">Deploy</div>
+                    <div class="step-description">Deploy to staging</div>
+                </div>
+            </div>
+
+            <div class="terminal" id="terminal"></div>
+
+            <div class="config-panel hidden" id="configPanel">
+                <h3>🔧 Jenkins Configuration</h3>
+                <div class="config-row">
+                    <span class="config-label">Java Version</span>
+                    <span class="config-value">OpenJDK 11</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Maven Version</span>
+                    <span class="config-value">3.8.6</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Node.js Version</span>
+                    <span class="config-value">16.20.1</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Build Tool</span>
+                    <span class="config-value">Maven</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Test Framework</span>
+                    <span class="config-value">JUnit 5</span>
+                </div>
+                <div class="config-row">
+                    <span class="config-label">Webhook Trigger</span>
+                    <span class="config-value">Enabled</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let buildNumber = 0;
+        let isBuilding = false;
+        let currentStep = 0;
+        let terminal;
+        let buildTimeout;
+
+        function initializeTerminal() {
+            terminal = document.getElementById('terminal');
+            addTerminalLine('Jenkins Build Console');
+            addTerminalLine('===================');
+            addTerminalLine('Ready to start build process...');
+            addTerminalLine('');
+        }
+
+        function addTerminalLine(text, delay = 0) {
+            setTimeout(() => {
+                const line = document.createElement('div');
+                line.className = 'terminal-line';
+                line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+                terminal.appendChild(line);
+                terminal.scrollTop = terminal.scrollHeight;
+            }, delay);
+        }
+
+        function updateBuildStatus(status, indicator) {
+            document.getElementById('buildStatus').textContent = status;
+            document.getElementById('statusIndicator').className = `status-indicator ${indicator}`;
+        }
+
+        function resetSteps() {
+            const steps = ['step-checkout', 'step-build', 'step-test', 'step-deploy'];
+            steps.forEach(stepId => {
+                const step = document.getElementById(stepId);
+                step.className = 'pipeline-step';
+            });
+        }
+
+        function activateStep(stepIndex) {
+            const steps = ['step-checkout', 'step-build', 'step-test', 'step-deploy'];
+            const stepNames = ['Checkout', 'Build', 'Test', 'Deploy'];
+            
+            if (stepIndex > 0) {
+                document.getElementById(steps[stepIndex - 1]).className = 'pipeline-step completed';
+            }
+            
+            if (stepIndex < steps.length) {
+                document.getElementById(steps[stepIndex]).className = 'pipeline-step active';
+                addTerminalLine(`Starting ${stepNames[stepIndex]} phase...`);
+            }
+        }
+
+        function startBuild() {
+            if (isBuilding) return;
+            
+            isBuilding = true;
+            buildNumber++;
+            currentStep = 0;
+            
+            document.getElementById('buildNumber').textContent = buildNumber;
+            updateBuildStatus('Building...', 'status-building');
+            
+            addTerminalLine('');
+            addTerminalLine(`🚀 Starting Build #${buildNumber}`);
+            addTerminalLine('==========================================');
+            
+            resetSteps();
+            runBuildSteps();
+        }
+
+        function runBuildSteps() {
+            const steps = [
+                () => {
+                    activateStep(0);
+                    addTerminalLine('📥 Cloning repository from GitHub...', 500);
+                    addTerminalLine('git clone https://github.com/Abdullahgulzar/jenkins-1st-project.git', 1000);
+                    addTerminalLine('✅ Repository cloned successfully', 2000);
+                },
+                () => {
+                    activateStep(1);
+                    addTerminalLine('🔨 Compiling source code...', 500);
+                    addTerminalLine('mvn clean compile', 1000);
+                    addTerminalLine('[INFO] BUILD SUCCESS', 2500);
+                    addTerminalLine('✅ Compilation completed', 3000);
+                },
+                () => {
+                    activateStep(2);
+                    addTerminalLine('🧪 Running unit tests...', 500);
+                    addTerminalLine('mvn test', 1000);
+                    addTerminalLine('Tests run: 12, Failures: 0, Errors: 0, Skipped: 0', 2000);
+                    addTerminalLine('✅ All tests passed', 2500);
+                },
+                () => {
+                    activateStep(3);
+                    addTerminalLine('🚀 Deploying to staging environment...', 500);
+                    addTerminalLine('mvn deploy', 1000);
+                    addTerminalLine('✅ Deployment successful', 2000);
+                    
+                    setTimeout(() => {
+                        document.getElementById('step-deploy').className = 'pipeline-step completed';
+                        updateBuildStatus('Build Successful', 'status-success');
+                        addTerminalLine('');
+                        addTerminalLine(`🎉 Build #${buildNumber} completed successfully!`);
+                        addTerminalLine('==========================================');
+                        isBuilding = false;
+                    }, 2500);
+                }
+            ];
+
+            function runNextStep() {
+                if (currentStep < steps.length && isBuilding) {
+                    steps[currentStep]();
+                    currentStep++;
+                    buildTimeout = setTimeout(runNextStep, 4000);
+                }
+            }
+
+            runNextStep();
+        }
+
+        function stopBuild() {
+            if (!isBuilding) return;
+            
+            clearTimeout(buildTimeout);
+            isBuilding = false;
+            updateBuildStatus('Build Stopped', 'status-failed');
+            addTerminalLine('');
+            addTerminalLine('🛑 Build stopped by user');
+            addTerminalLine('==========================================');
+            
+            // Mark current step as failed
+            const steps = ['step-checkout', 'step-build', 'step-test', 'step-deploy'];
+            if (currentStep > 0 && currentStep <= steps.length) {
+                document.getElementById(steps[currentStep - 1]).className = 'pipeline-step failed';
+            }
+        }
+
+        function showConfig() {
+            const panel = document.getElementById('configPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function showTests() {
+            addTerminalLine('');
+            addTerminalLine('🧪 Running test suite...');
+            addTerminalLine('mvn test -Dtest=*Test');
+            addTerminalLine('');
+            addTerminalLine('Running com.example.UserServiceTest');
+            addTerminalLine('✅ testCreateUser() - PASSED', 1000);
+            addTerminalLine('✅ testUpdateUser() - PASSED', 1500);
+            addTerminalLine('✅ testDeleteUser() - PASSED', 2000);
+            addTerminalLine('', 2500);
+            addTerminalLine('Running com.example.AuthServiceTest', 3000);
+            addTerminalLine('✅ testLogin() - PASSED', 3500);
+            addTerminalLine('✅ testLogout() - PASSED', 4000);
+            addTerminalLine('', 4500);
+            addTerminalLine('Test Results: 5 tests, 5 passed, 0 failed', 5000);
+            addTerminalLine('🎉 All tests completed successfully!', 5500);
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            initializeTerminal();
+        };
+    </script>
+</body>
+</html>
